@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オセロゲーム</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            font-size: 4rem;
+            color: #ff6347; /* トマト色にして、目を引くように */
+            text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3);
+            margin-top: 50px;
+            transition: all 0.3s ease;
+        }
+
+        h1:hover {
+            color: #ff4500; /* ホバー時に色が変わる */
+            text-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #playerSetup {
+            display: block;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.8); /* 半透明の背景 */
+            border-radius: 10px;
+            width: 80%;
+            max-width: 400px;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 2;
+        }
+
+        #gameBoardContainer {
+            display: none;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+
+        #gameContainer {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        #gameBoard {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            margin: 20px auto;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: #008000;
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+
+        .cell:hover {
+            background-color: #66cc66; /* 明るい緑に変更 */
+        }
+
+        .piece {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotateY(0);
+            backface-visibility: hidden;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .black {
+            background-color: black;
+        }
+
+        .white {
+            background-color: white;
+        }
+
+        .flip {
+            transform: rotateY(180deg);
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #turnIndicator {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #scoreboard {
+            text-align: left;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        #scoreboard h3 {
+            margin-bottom: 10px;
+        }
+
+        #scoreboard div {
+            font-size: 18px;
+            margin: 5px 0;
+        }
+
+        /* ゲーム開始画面の背景画像 */
+        #playerSetup {
+            background-image: url('your-image-url.jpg'); /* 画像のURLをここに設定 */
+            background-size: cover;
+            background-position: center;
+        }
+
+        @media (max-width: 600px) {
+            #gameBoard {
+                grid-template-columns: repeat(8, 1fr);
+                width: 90%;
+            }
+            #playerSetup {
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>オセロゲーム</h1>
+
+    <!-- プレイヤー設定画面 -->
+    <div id="playerSetup">
+        <h2>ゲーム設定</h2>
+        <label>
+            プレイヤー名:
+            <input type="text" id="playerName" placeholder="プレイヤー名">
+        </label>
+        <br>
+        <label>
+            色を選択:
+            <select id="playerColor">
+                <option value="black">黒</option>
+                <option value="white">白</option>
+            </select>
+        </label>
+        <br>
+        <label>
+            順番を選択:
+            <select id="playerOrder">
+                <option value="first">先攻</option>
+                <option value="second">後攻</option>
+            </select>
+        </label>
+        <br>
+        <label>
+            難易度を選択:
+            <select id="difficulty">
+                <option value="easy">簡単</option>
+                <option value="hard">難しい</option>
+            </select>
+        </label>
+        <br>
+        <button onclick="startGame()">ゲーム開始</button>
+    </div>
+
+    <!-- ゲーム画面 -->
+    <div id="gameBoardContainer">
+        <div id="gameBoard"></div>
+        <div id="scoreboard">
+            <h3>スコア</h3>
+            <div id="playerScore"></div>
+            <div id="aiScore"></div>
+            <div id="turnIndicator"></div>
+            <button onclick="resetGame()">リセット</button>
+            <button onclick="goBackToSetup()">ゲーム開始画面に戻る</button>
+        </div>
+    </div>
+    <p id="status"></p>
+
+    <script>
+        let board = Array(8).fill(null).map(() => Array(8).fill(null));
+        let currentPlayer = 'black';
+        let playerName = 'プレイヤー';
+        let playerColor = 'black';
+        let aiColor = 'white';
+        let playerOrder = 'first';
+        let playerScore = 0;
+        let aiScore = 0;
+        let difficulty = 'easy';  // 初期設定は簡単
+        let gameEnded = false;
+
+        function initializeBoard() {
+            board[3][3] = 'white';
+            board[3][4] = 'black';
+            board[4][3] = 'black';
+            board[4][4] = 'white';
+            renderBoard();
+            updateScore();
+            updateTurnIndicator();
+        }
+
+        function renderBoard() {
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    if (board[i][j]) {
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece', board[i][j]);
+                        cell.appendChild(piece);
+                    }
+                    cell.onclick = () => makeMove(i, j);
+                    cell.onmouseenter = () => highlightCell(i, j);
+                    cell.onmouseleave = () => unhighlightCell(i, j);
+                    gameBoard.appendChild(cell);
+                }
+            }
+        }
+
+        function highlightCell(row, col) {
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            if (!board[row][col] && isValidMove(row, col, currentPlayer)) {
+                cell.style.backgroundColor = "#66cc66"; // 明るくなる
+            }
+        }
+
+        function unhighlightCell(row, col) {
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            cell.style.backgroundColor = "#008000"; // 元の色に戻す
+        }
+
+        function isValidMove(row, col, player) {
+            if (board[row][col]) return false;
+            const directions = [
+                [0, 1], [1, 0], [0, -1], [-1, 0],
+                [1, 1], [1, -1], [-1, 1], [-1, -1]
+            ];
+            for (const [dx, dy] of directions) {
+                let x = row + dx, y = col + dy, hasOpponent = false;
+                while (x >= 0 && x < 8 && y >= 0 && y < 8) {
+                    if (!board[x][y]) break;
+                    if (board[x][y] !== player) {
+                        hasOpponent = true;
+                    } else if (hasOpponent) {
+                        return true;
+                    } else {
+                        break;
+                    }
+                    x += dx;
+                    y += dy;
+                }
+            }
+            return false;
+        }
+
+        function makeMove(row, col) {
+            if (!isValidMove(row, col, currentPlayer) || gameEnded) {
+                alert('無効な手です');
+                return;
+            }
+            placePiece(row, col, currentPlayer);
+            renderBoard();
+            setTimeout(() => flipPieces(row, col, currentPlayer), 200);
+            setTimeout(() => {
+                currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+                updateScore();
+                updateTurnIndicator();
+                if (currentPlayer === aiColor) aiMove();
+            }, 600);
+
+            checkGameEnd();
+        }
+
+        function placePiece(row, col, player) {
+            board[row][col] = player;
+        }
+
+        function flipPieces(row, col, player) {
+            const directions = [
+                [0, 1], [1, 0], [0, -1], [-1, 0],
+                [1, 1], [1, -1], [-1, 1], [-1, -1]
+            ];
+            for (const [dx, dy] of directions) {
+                let x = row + dx, y = col + dy, toFlip = [];
+                while (x >= 0 && x < 8 && y >= 0 && y < 8) {
+                    if (!board[x][y]) break;
+                    if (board[x][y] === player) {
+                        toFlip.forEach(([fx, fy]) => {
+                            board[fx][fy] = player;
+                            animateFlip(fx, fy, player);
+                        });
+                        break;
+                    }
+                    toFlip.push([x, y]);
+                    x += dx;
+                    y += dy;
+                }
+            }
+        }
+
+        function animateFlip(row, col, player) {
+            const cells = document.querySelectorAll('.cell');
+            for (const cell of cells) {
+                if (cell.dataset.row == row && cell.dataset.col == col) {
+                    const piece = cell.querySelector('.piece');
+                    if (piece) {
+                        piece.classList.add('flip');
+                        setTimeout(() => {
+                            piece.classList.remove('black', 'white', 'flip');
+                            piece.classList.add(player);
+                        }, 300);
+                    }
+                }
+            }
+        }
+
+        function aiMove() {
+            setTimeout(() => {
+                const validMoves = [];
+                for (let i = 0; i < 8; i++) {
+                    for (let j = 0; j < 8; j++) {
+                        if (isValidMove(i, j, aiColor)) validMoves.push([i, j]);
+                    }
+                }
+
+                if (validMoves.length > 0) {
+                    let move;
+                    if (difficulty === 'easy') {
+                        move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                    } else {
+                        move = minimax(validMoves); // 高難易度の場合のAI戦略
+                    }
+                    makeMove(move[0], move[1]);
+                }
+            }, 500);
+        }
+
+        function minimax(validMoves) {
+            // 高難易度のためのAI戦略（適当な実装）
+            return validMoves[Math.floor(Math.random() * validMoves.length)];
+        }
+
+        function updateScore() {
+            playerScore = board.flat().filter(cell => cell === 'black').length;
+            aiScore = board.flat().filter(cell => cell === 'white').length;
+            document.getElementById('playerScore').innerText = `プレイヤー: ${playerScore}`;
+            document.getElementById('aiScore').innerText = `AI: ${aiScore}`;
+        }
+
+        function updateTurnIndicator() {
+            document.getElementById('turnIndicator').innerText = `${currentPlayer === 'black' ? 'プレイヤー' : 'AI'}のターン`;
+        }
+
+        function checkGameEnd() {
+            if (board.flat().every(cell => cell)) {
+                gameEnded = true;
+                setTimeout(() => {
+                    alert('ゲーム終了');
+                    if (playerScore > aiScore) {
+                        alert('プレイヤーの勝ち!');
+                    } else if (aiScore > playerScore) {
+                        alert('AIの勝ち!');
+                    } else {
+                        alert('引き分け!');
+                    }
+                }, 500);
+            }
+        }
+
+        function startGame() {
+            playerName = document.getElementById('playerName').value || 'プレイヤー';
+            playerColor = document.getElementById('playerColor').value;
+            playerOrder = document.getElementById('playerOrder').value;
+            difficulty = document.getElementById('difficulty').value;
+
+            aiColor = playerColor === 'black' ? 'white' : 'black';
+
+            // ゲーム開始画面を隠す
+            document.getElementById('playerSetup').style.display = 'none';
+
+            // ゲームを開始
+            initializeBoard();
+            if (playerOrder === 'second') currentPlayer = aiColor;
+            document.getElementById('gameBoardContainer').style.display = 'flex';
+        }
+
+        function resetGame() {
+            board = Array(8).fill(null).map(() => Array(8).fill(null));
+            gameEnded = false;
+            currentPlayer = playerColor === 'black' ? 'black' : 'white';
+            initializeBoard();
+        }
+
+        function goBackToSetup() {
+            document.getElementById('gameBoardContainer').style.display = 'none';
+            document.getElementById('playerSetup').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
